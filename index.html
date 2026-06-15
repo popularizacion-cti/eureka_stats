@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard EUREKA - Estadísticas</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .table-container { padding: 10px; background: white; border-radius: 8px; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        .data-table th { background-color: #005A7C; color: white; padding: 12px; font-weight: 600; }
+        .data-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+        .data-table tr:hover { background-color: #f1f5f9; }
+        .data-table .text-bold { font-weight: 700; color: #005A7C; font-size: 14px; text-align: center; }
+        .data-table .col-center { text-align: center; }
+        .header-with-select { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header-with-select h2 { margin: 0; }
+        .leyenda-explicativa { text-align: center; font-size: 13px; color: #475569; margin-top: 5px; margin-bottom: 15px; }
+        .leyenda-explicativa span { display: inline-block; margin: 0 12px; }
+        .leyenda-explicativa b { color: #005A7C; }
+        .descripcion-grafico { font-size: 14px; color: #64748b; margin-top: 5px; margin-bottom: 15px; line-height: 1.5; text-align: justify; }
+        
+        .empty-stage-container { padding: 40px 20px; text-align: center; color: #64748b; background: white; border-radius: 8px; margin-top: 20px; border: 1px dashed #cbd5e1; }
+        .empty-stage-container h2 { color: #005A7C; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        <aside class="sidebar-controls">
+            <div class="brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #0284c7;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                EUREKA <span>STATS</span>
+            </div>
+
+            <div class="control-card">
+                <div class="control-label">
+                    <label for="etapa">Etapa del Concurso</label>
+                    <select id="etapa" class="light-select">
+                        <option value="UGEL" selected>Etapa UGEL</option>
+                        <option value="DRE">Etapa DRE</option>
+                        <option value="Nacional">Etapa Nacional</option>
+                        <option value="Ganadores">Ganadores</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-card">
+                <div class="control-label">
+                    <label for="nivel">Nivel Educativo</label>
+                    <select id="nivel" class="light-select">
+                        <option value="Secundaria">Secundaria</option>
+                        <option value="Primaria">Primaria</option>
+                    </select>
+                </div>
+            </div>
+
+            <section class="map-card-sidebar">
+                <div class="map-header">
+                    <h2>Selector Regional</h2>
+                </div>
+
+                <div class="control-item">
+                    <select id="select-region" class="light-select">
+                        <option value="Nacional">Nacional</option>
+                        </select>
+                </div>
+
+                <div id="peru-map-container" class="map-content-mini">
+                    </div>
+                <div id="titulo_region_actual" class="region-info-text">Seleccionado: Nacional</div>
+            </section>
+        </aside>
+
+        <main class="dashboard-content">
+            <header class="main-header">
+                <h1>Estadísticas del Concurso Escolar Nacional de Ciencia y Tecnología Eureka</h1>
+                <p id="subtitle-years">Desde 2018 al 2025</p>
+            </header>
+
+            <div id="contenedor-etapa-ugel">
+                <div class="dashboard-grid">
+                    
+                    <section class="chart-card full-width">
+                        <h2>Evolución General de Participación de las Instituciones Educativas</h2>
+                        <div id="grafica_part_general_ugel" class="plotly-graph"></div>
+                    </section>
+
+                    <section class="chart-card">
+                        <h2>Evolución de Participación de las Instituciones Educativas - Gestión Pública</h2>
+                        <div id="grafica_part_publica_ugel" class="plotly-graph"></div>
+                    </section>
+
+                    <section class="chart-card">
+                        <h2>Evolución de Participación de las Instituciones Educativas - Gestión Privada</h2>
+                        <div id="grafica_part_privada_ugel" class="plotly-graph"></div>
+                    </section>
+
+                    <section id="contenedor_mapa_calor" class="chart-card full-width">
+                        <h2>Concentración de Proyectos Participantes</h2>
+                        <div id="grafica_mapa_calor_ugel" class="plotly-graph" style="height: 600px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2 id="titulo_multi_general_ugel">Evolución de Participación por DRE</h2>
+                        <div id="grafica_part_multi_general_ugel" class="plotly-graph" style="height: 500px;"></div>
+                    </section>
+
+                    <section class="chart-card">
+                        <h2 id="titulo_multi_publica_ugel">DRE - Gestión Pública</h2>
+                        <div id="grafica_part_multi_publica_ugel" class="plotly-graph" style="height: 450px;"></div>
+                    </section>
+
+                    <section class="chart-card">
+                        <h2 id="titulo_multi_privada_ugel">DRE - Gestión Privada</h2>
+                        <div id="grafica_part_multi_privada_ugel" class="plotly-graph" style="height: 450px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Comparativa de Representatividad por Gestión de la Institución Educativa</h2>
+                        <div id="grafica_rep_gestion_ugel" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Comparativa de Representatividad por Área Geográfica de la Institución Educativa</h2>
+                        <div id="grafica_rep_area_ugel" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Distribución de Instituciones según la Cantidad Proyectos Participantes por Año</h2>
+                        <div id="grafica_distribucion_ugel" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Top 20 Instituciones con Mayor Participación Histórica</h2>
+                        <div id="tabla_top20_ugel" class="table-container" style="overflow-x: auto;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Trayectoria de Participación Histórica (<span id="titulo-rango-vigencia_ugel"></span>)</h2>
+                        <p class="descripcion-grafico">
+                            Este análisis evalúa la <b>constancia institucional</b> a lo largo de todo el historial del concurso. Permite identificar a las instituciones educativas según su grado de permanencia y arraigo dentro de la cultura de investigación científica escolar.
+                        </p>
+                        <div class="leyenda-explicativa">
+                            <span><b>Iniciación / Intermitente:</b> 1 a 2 años</span>
+                            <span><b>Trayectoria en Desarrollo:</b> 3 a 4 años</span>
+                            <span><b>Presencia Sostenida:</b> 5 a 6 años</span>
+                            <span><b>Liderazgo Consolidado:</b> 7 a 8 años</span>
+                        </div>
+                        <div id="grafica_vigencia_ugel" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Permanencia del Estudiante: Cantidad de Años de Participación</h2>
+                        <p class="descripcion-grafico">Distribución histórica de los estudiantes según la cantidad total de años que han participado en el concurso dentro de este nivel educativo.</p>
+                        <div id="grafica_permanencia_est_ugel" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Punto de Inicio: ¿En qué grado escolar se captan a los participantes de Eureka?</h2>
+                        <p class="descripcion-grafico">Este análisis clasifica a los estudiantes según el total de años que concursaron, revelando el grado escolar exacto en el que iniciaron su participación.</p>
+                        <div id="grafica_permanencia_grado_ugel" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Porcentaje de Proyectos Clasificados por Área según su Categoría</h2>
+                            <select id="select-anio-composicion_ugel" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <div id="grafica_composicion_ugel" class="plotly-graph" style="height: 550px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Evolución Histórica por Grado Escolar de los Estudiantes</h2>
+                        <div id="grafica_grado_ugel" class="plotly-graph" style="height: 450px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Evolución Histórica de la Participación por Género de los Estudiantes</h2>
+                        <div id="grafica_genero_hist_ugel" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de Participación por Género de los Estudiantes</h2>
+                            <select id="select-anio-genero_ugel" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Distribución por Grado Escolar</h3>
+                        <div id="grafica_genero_grado_ugel" class="plotly-graph" style="height: 400px;"></div>
+                        
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Distribución por Categoría</h3>
+                        <div id="grafica_genero_cat_ugel" class="plotly-graph" style="height: 400px;"></div>
+                        
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Distribución por Área</h3>
+                        <div id="grafica_genero_area_ugel" class="plotly-graph" style="height: 550px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Evolución Histórica de la Dinámica de Trabajo</h2>
+                        <p class="descripcion-grafico">Proporción de proyectos desarrollados de manera individual o en equipo (parejas) a lo largo del tiempo.</p>
+                        <div id="grafica_equipo_hist_ugel" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de la Dinámica de Trabajo</h2>
+                            <select id="select-anio-equipo_ugel" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Preferencia por Grado Escolar</h3>
+                        <div id="grafica_equipo_grado_ugel" class="plotly-graph" style="height: 400px;"></div>
+                        
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Preferencia por Categoría</h3>
+                        <div id="grafica_equipo_cat_ugel" class="plotly-graph" style="height: 400px;"></div>
+                        
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Preferencia por Área</h3>
+                        <div id="grafica_equipo_area_ugel" class="plotly-graph" style="height: 550px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Tendencias en Temas de Investigación</h2>
+                        <p class="descripcion-grafico">Temas y enfoques de investigación más recurrentes extraídos de los proyectos.</p>
+                        <div id="grafica_temas_general_ugel" class="plotly-graph" style="height: 350px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de Temas de Investigación</h2>
+                            <select id="select-anio-temas_ugel" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Tendencias por Grado Escolar</h3>
+                        <div id="grafica_temas_grado_ugel" class="plotly-graph" style="height: 300px;"></div>
+                        
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Tendencias por Categoría</h3>
+                        <div id="grafica_temas_cat_ugel" class="plotly-graph" style="height: 300px;"></div>
+                        
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Tendencias por Área</h3>
+                        <div id="grafica_temas_area_ugel" class="plotly-graph" style="height: 500px;"></div>
+                    </section>
+
+                </div>
+            </div>
+
+            <div id="contenedor-etapa-dre" style="display: none;">
+                <div class="dashboard-grid">
+ 
+                    <section class="chart-card full-width">
+                        <h2>Comparativa de Representatividad por Gestión de la Institución Educativa</h2>
+                        <div id="grafica_rep_gestion_dre" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Comparativa de Representatividad por Área Geográfica de la Institución Educativa</h2>
+                        <div id="grafica_rep_area_dre" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+                    
+                    <section id="section_comprobacion_dre" class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Auditoría de Clasificación: Proyectos por UGEL enviados a la Etapa DRE</h2>
+                            <select id="select-anio-comprobacion_dre" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <p class="descripcion-grafico">Matriz de cumplimiento de envíos por UGEL. <span style="color:green; font-weight:bold;">1 (✅ Correcto)</span> | <span style="color:orange; font-weight:bold;">2 (⚠️ Excepción)</span> | <span style="color:red; font-weight:bold;">0 o >2 (❌ Incumplimiento)</span></p>
+                        <div id="tabla_comprobacion_dre" class="table-container" style="overflow-x: auto;"></div>
+                    </section>
+                    
+                    <section class="chart-card full-width">
+                        <h2>Top 20 Instituciones con Mayor Participación Histórica</h2>
+                        <div id="tabla_top20_dre" class="table-container" style="overflow-x: auto;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Evolución Histórica de la Participación por Género de los Estudiantes</h2>
+                        <div id="grafica_genero_hist_dre" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de Participación por Género de los Estudiantes</h2>
+                            <select id="select-anio-genero_dre" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Distribución por Grado Escolar</h3>
+                        <div id="grafica_genero_grado_dre" class="plotly-graph" style="height: 400px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Distribución por Categoría</h3>
+                        <div id="grafica_genero_cat_dre" class="plotly-graph" style="height: 400px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Distribución por Área</h3>
+                        <div id="grafica_genero_area_dre" class="plotly-graph" style="height: 550px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Evolución Histórica de la Dinámica de Trabajo</h2>
+                        <p class="descripcion-grafico">Proporción de proyectos desarrollados de manera individual o en equipo (parejas) a lo largo del tiempo.</p>
+                        <div id="grafica_equipo_hist_dre" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de la Dinámica de Trabajo</h2>
+                            <select id="select-anio-equipo_dre" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Preferencia por Grado Escolar</h3>
+                        <div id="grafica_equipo_grado_dre" class="plotly-graph" style="height: 400px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Preferencia por Categoría</h3>
+                        <div id="grafica_equipo_cat_dre" class="plotly-graph" style="height: 400px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Preferencia por Área</h3>
+                        <div id="grafica_equipo_area_dre" class="plotly-graph" style="height: 550px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Tendencias en Temas de Investigación</h2>
+                        <p class="descripcion-grafico">Temas y enfoques de investigación más recurrentes extraídos de los proyectos.</p>
+                        <div id="grafica_temas_general_dre" class="plotly-graph" style="height: 350px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de Temas de Investigación</h2>
+                            <select id="select-anio-temas_dre" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Tendencias por Grado Escolar</h3>
+                        <div id="grafica_temas_grado_dre" class="plotly-graph" style="height: 300px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Tendencias por Categoría</h3>
+                        <div id="grafica_temas_cat_dre" class="plotly-graph" style="height: 300px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Tendencias por Área</h3>
+                        <div id="grafica_temas_area_dre" class="plotly-graph" style="height: 500px;"></div>
+                    </section>
+                </div>
+            </div>
+
+            <div id="contenedor-etapa-nacional" class="empty-stage-container" style="display: none;">
+                <h2>Etapa Nacional</h2>
+                <p>La información para esta etapa se encuentra en desarrollo y estará disponible próximamente.</p>
+            </div>
+
+            <div id="contenedor-etapa-ganadores" class="empty-stage-container" style="display: none;">
+                <h2>Ganadores</h2>
+                <p>La información de los ganadores se encuentra en desarrollo y estará disponible próximamente.</p>
+            </div>
+
+        </main>
+    </div>
+    
+    <script src="mapa.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

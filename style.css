@@ -1,0 +1,210 @@
+/* --- RESETEO Y FUENTES --- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    /* PALETA EUREKA PERSONALIZADA */
+    --brand-green: #B4BD0E;       /* Verde (Acentos vibrantes) */
+    --dark-blue: #005A7C;         /* Azul (Títulos, texto principal, anclajes) */
+    --accent-cyan: #00B3CD;       /* Celeste (Interactividad, hovers) */
+    
+    --bg-main: #f2f7f9;           /* Celeste súper claro (Fondo de la app) */
+    --bg-sidebar: #ffffff;        /* Blanco puro (Barra lateral) */
+    --card-bg: #ffffff;           /* Blanco puro (Tarjetas) */
+    
+    --text-primary: var(--dark-blue); 
+    --text-secondary: #5c8496;    /* Un azul grisáceo derivado para subtítulos */
+    
+    --border-light: #dce6eb;      /* Líneas divisorias muy sutiles */
+    --border-strong: #aed1dc;     /* Bordes de inputs y cuadros */
+    
+    /* Sombras teñidas ligeramente de azul para mayor cohesión */
+    --shadow-soft: 0 2px 5px rgba(0, 90, 124, 0.05);
+    --shadow-card: 0 4px 10px rgba(0, 90, 124, 0.08);
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    overflow: hidden; 
+}
+
+/* --- LAYOUT PRINCIPAL --- */
+.app-layout { display: flex; height: 100vh; }
+
+.sidebar-controls {
+    width: 320px;
+    background-color: var(--bg-sidebar);
+    border-right: 1px solid var(--border-light);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+    box-shadow: 4px 0 10px rgba(0, 90, 124, 0.03);
+    z-index: 10;
+}
+
+.dashboard-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem 3rem;
+}
+
+/* --- CABECERA PRINCIPAL --- */
+.main-header { margin-bottom: 2rem; }
+.main-header h1 { font-size: 1.6rem; font-weight: 800; color: var(--dark-blue); letter-spacing: -0.5px; }
+.main-header p { font-size: 1rem; color: var(--text-secondary); margin-top: 4px; }
+
+/* --- SIDEBAR COMPONENTS --- */
+.brand {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--dark-blue);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.5px;
+}
+.brand span { color: var(--brand-green); font-weight: 800; } /* Detalle Verde */
+
+.control-card {
+    background: var(--card-bg);
+    padding: 1.2rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-soft);
+}
+
+.control-label label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.light-select {
+    width: 100%;
+    background: #ffffff;
+    color: var(--dark-blue);
+    border: 1px solid var(--border-strong);
+    padding: 10px 12px;
+    border-radius: 8px;
+    outline: none;
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.light-select:hover { border-color: var(--accent-cyan); }
+.light-select:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(0, 179, 205, 0.15); }
+
+/* --- MAPA EN SIDEBAR --- */
+.map-card-sidebar {
+    background: var(--card-bg);
+    padding: 1.2rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.map-header h2 { font-size: 0.95rem; margin-bottom: 0; padding-bottom: 0; border: none; color: var(--dark-blue); }
+
+.map-content-mini {
+    background: var(--bg-main);
+    height: 280px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 10px;
+}
+
+#peru-map { width: 100%; height: 100%; }
+
+/* Interacción con el Mapa */
+.region-path {
+    fill: #dce6eb !important;     /* Gris celeste muy sutil por defecto */
+    stroke: #ffffff !important; 
+    stroke-width: 1;
+    transition: fill 0.2s ease;
+    cursor: pointer;
+}
+.region-path:hover { fill: var(--accent-cyan) !important; } /* Al pasar el mouse: Celeste */
+.region-active { fill: var(--dark-blue) !important; stroke: #ffffff !important; stroke-width: 1.5; } /* Clic: Azul Fuerte */
+
+.region-info-text {
+    text-align: center;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    background: var(--brand-green); /* Recuadro Verde vibrante */
+    padding: 8px;
+    border-radius: 6px;
+    margin-top: 5px;
+}
+
+/* --- GRID Y TARJETAS DE GRÁFICAS --- */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    max-width: 1400px;
+}
+
+.full-width { grid-column: span 2; }
+
+.chart-card {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid #ffffff;
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 1.2rem;
+    color: var(--dark-blue);
+    border-bottom: 2px solid var(--brand-green); /* Acento verde subrayando el título */
+    padding-bottom: 0.8rem;
+}
+
+/* --- ÁREA DEL GRÁFICO (ESTADO VACÍO) --- */
+.plotly-graph {
+    width: 100%;
+    height: 380px;
+    min-height: 380px;
+    position: relative;
+}
+
+/* Estado de espera (mientras no hay datos) */
+.plotly-graph:empty {
+    background-color: var(--bg-main);
+    border: 2px dashed var(--border-strong);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.plotly-graph:empty::after {
+    content: 'Esperando datos de las Regiones...';
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
