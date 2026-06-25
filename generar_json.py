@@ -5,9 +5,12 @@ import unicodedata
 import re
 import nltk
 import itertools
+import warnings
 from unidecode import unidecode
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer
+
+warnings.filterwarnings('ignore')
 
 # Preparación para Procesamiento de Lenguaje Natural (NLP)
 nltk.download('stopwords', quiet=True)
@@ -90,6 +93,81 @@ def exportar_lote_ugel(etapa, nombre_region, df_single_gen, df_single_gest, df_m
         pd.merge(esc_area, eu_area, on='Categoria', how='outer').fillna(0).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_rep_area.json"), orient='records', force_ascii=False)
 
         eu_niv_all = df_eureka_region[df_eureka_region['Estudiante - Nivel'] == nivel]
+        
+        # =========================================================
+        # --- LÓGICA COBERTURA PROVINCIAL Y DISTRITAL (UGEL) ---
+        # =========================================================
+        if nombre_region != "Nacional":
+            try:
+                mapa_prov = df_escale_region.dropna(subset=['IE - Codigo modular', 'IE - Provincia']).drop_duplicates(subset=['IE - Codigo modular']).set_index('IE - Codigo modular')['IE - Provincia'].to_dict()
+                mapa_dist = df_escale_region.dropna(subset=['IE - Codigo modular', 'IE - Distrito']).drop_duplicates(subset=['IE - Codigo modular']).set_index('IE - Codigo modular')['IE - Distrito'].to_dict()
+                
+                eu_niv_geo = eu_niv_all.copy()
+                eu_niv_geo['IE - Provincia'] = eu_niv_geo['IE - Codigo modular'].map(mapa_prov)
+                eu_niv_geo['IE - Distrito'] = eu_niv_geo['IE - Codigo modular'].map(mapa_dist)
+                
+                tot_prov_list, tot_dist_list, eu_prov_list, eu_dist_list = [], [], [], []
+                anios_eval = sorted(eu_niv_geo['Año'].dropna().unique())
+                
+                for anio in anios_eval:
+                    esc_a = df_escale_region[(df_escale_region['IE - Nivel'] == nivel) & (df_escale_region['IE - Registro_num'] <= anio)]
+                    if esc_a.empty: continue
+                    
+                    tp = esc_a.groupby(['IE - Provincia', 'IE - Gestion'])['IE - Codigo modular'].nunique().reset_index()
+                    tp['Año'] = anio; tot_prov_list.append(tp)
+                    
+                    td = esc_a.groupby(['IE - Provincia', 'IE - Distrito', 'IE - Gestion'])['IE - Codigo modular'].nunique().reset_index()
+                    td['Año'] = anio; tot_dist_list.append(td)
+                    
+                    eu_a = eu_niv_geo[eu_niv_geo['Año'] == anio]
+                    if not eu_a.empty:
+                        ep = eu_a.groupby(['IE - Provincia', 'IE - Gestion'])['IE - Codigo modular'].nunique().reset_index()
+                        ep['Año'] = anio; eu_prov_list.append(ep)
+                        
+                        ed = eu_a.groupby(['IE - Provincia', 'IE - Distrito', 'IE - Gestion'])['IE - Codigo modular'].nunique().reset_index()
+                        ed['Año'] = anio; eu_dist_list.append(ed)
+                        
+                if tot_prov_list and eu_prov_list:
+                    esc_prov = pd.concat(tot_prov_list, ignore_index=True).rename(columns={'IE - Codigo modular': 'Total_Escale'})
+                    esc_dist = pd.concat(tot_dist_list, ignore_index=True).rename(columns={'IE - Codigo modular': 'Total_Escale'})
+                    eu_prov = pd.concat(eu_prov_list, ignore_index=True).rename(columns={'IE - Codigo modular': 'Participantes_Eureka'})
+                    eu_dist = pd.concat(eu_dist_list, ignore_index=True).rename(columns={'IE - Codigo modular': 'Participantes_Eureka'})
+                    
+                    df_prov = pd.merge(eu_prov, esc_prov, on=['Año', 'IE - Provincia', 'IE - Gestion'], how='right')
+                    df_dist = pd.merge(eu_dist, esc_dist, on=['Año', 'IE - Provincia', 'IE - Distrito', 'IE - Gestion'], how='right')
+                    
+                    def calc_pct(df):
+                        df['Participantes_Eureka'] = df['Participantes_Eureka'].fillna(0).astype(int)
+                        df['Total_Escale'] = df['Total_Escale'].fillna(0).astype(int)
+                        df['Porcentaje (%)'] = 0.0
+                        mask = df['Total_Escale'] > 0
+                        df.loc[mask, 'Porcentaje (%)'] = ((df.loc[mask, 'Participantes_Eureka'] / df.loc[mask, 'Total_Escale']) * 100).round(1)
+                        return df
+                        
+                    df_prov = calc_pct(df_prov)
+                    df_dist = calc_pct(df_dist)
+                    
+                    df_prov_gen = calc_pct(df_prov.groupby(['Año', 'IE - Provincia'])[['Participantes_Eureka', 'Total_Escale']].sum().reset_index())
+                    df_dist_gen = calc_pct(df_dist.groupby(['Año', 'IE - Provincia', 'IE - Distrito'])[['Participantes_Eureka', 'Total_Escale']].sum().reset_index())
+                    
+                    df_prov_gen.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_provincia_general.json"), orient='records', force_ascii=False)
+                    df_prov[df_prov['IE - Gestion'] == 'Pública'].to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_provincia_publica.json"), orient='records', force_ascii=False)
+                    df_prov[df_prov['IE - Gestion'] == 'Privada'].to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_provincia_privada.json"), orient='records', force_ascii=False)
+                    
+                    df_dist_gen.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_distrito_general.json"), orient='records', force_ascii=False)
+                    df_dist[df_dist['IE - Gestion'] == 'Pública'].to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_distrito_publica.json"), orient='records', force_ascii=False)
+                    df_dist[df_dist['IE - Gestion'] == 'Privada'].to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_distrito_privada.json"), orient='records', force_ascii=False)
+                else:
+                    for suf in ['provincia_general', 'provincia_publica', 'provincia_privada', 'distrito_general', 'distrito_publica', 'distrito_privada']:
+                        pd.DataFrame().to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_{suf}.json"), orient='records', force_ascii=False)
+            except Exception as e:
+                for suf in ['provincia_general', 'provincia_publica', 'provincia_privada', 'distrito_general', 'distrito_publica', 'distrito_privada']:
+                    pd.DataFrame().to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_{suf}.json"), orient='records', force_ascii=False)
+        else:
+            for suf in ['provincia_general', 'provincia_publica', 'provincia_privada', 'distrito_general', 'distrito_publica', 'distrito_privada']:
+                pd.DataFrame().to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_{suf}.json"), orient='records', force_ascii=False)
+        # =========================================================
+
         comp_data = eu_niv_all.groupby(['Año', 'Proyecto - Categoria', 'Proyecto - Area'])['Proyecto - Codigo'].nunique().reset_index()
         comp_data.rename(columns={'Proyecto - Codigo': 'Cant_Proyectos'}, inplace=True)
         comp_data.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_composicion.json"), orient='records', force_ascii=False)

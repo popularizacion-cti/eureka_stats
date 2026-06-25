@@ -249,6 +249,15 @@ async function cargarDataRegion(nombreRegion) {
 
         if (esNacional) {
             archivos.push({ key: "mapa", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_mapa.json` });
+        } else {
+            archivos.push(
+                { key: "prov_gen", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_provincia_general.json` },
+                { key: "prov_pub", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_provincia_publica.json` },
+                { key: "prov_pri", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_provincia_privada.json` },
+                { key: "dist_gen", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_distrito_general.json` },
+                { key: "dist_pub", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_distrito_publica.json` },
+                { key: "dist_pri", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_distrito_privada.json` }
+            );
         }
 
         try {
@@ -289,7 +298,9 @@ async function cargarDataRegion(nombreRegion) {
         ];
 
         if (!esNacional) {
-            archivos_dre.push({ key: "comprobacion", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_comprobacion.json` });
+            archivos_dre.push(
+                { key: "comprobacion", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_comprobacion.json` }
+            );
         }
 
         try {
@@ -308,6 +319,17 @@ async function cargarDataRegion(nombreRegion) {
 // GESTOR DE MEMORIA Y RENDERIZADO POR ETAPAS
 // =============================================
 
+function purgaGraficasProvDist() {
+    const listIds = [
+        'grafica_part_provincia_general_ugel', 'grafica_part_provincia_publica_ugel', 'grafica_part_provincia_privada_ugel',
+        'grafica_part_distrito_general_ugel', 'grafica_part_distrito_publica_ugel', 'grafica_part_distrito_privada_ugel'
+    ];
+    listIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { Plotly.purge(id); el.innerHTML = ""; }
+    });
+}
+
 function purgaGraficasUgel() {
     const listIds = [
         'grafica_part_general_ugel', 'grafica_part_publica_ugel', 'grafica_part_privada_ugel',
@@ -324,6 +346,7 @@ function purgaGraficasUgel() {
         const el = document.getElementById(id);
         if (el) Plotly.purge(id);
     });
+    purgaGraficasProvDist();
 }
 
 function purgaGraficasDre() {
@@ -352,6 +375,48 @@ function actualizarGraficasUgel() {
     renderizarLineasMultiples(globalData.multi_general, globalData.general, 'grafica_part_multi_general_ugel');
     renderizarLineasMultiples(globalData.multi_publica, globalData.publica, 'grafica_part_multi_publica_ugel');
     renderizarLineasMultiples(globalData.multi_privada, globalData.privada, 'grafica_part_multi_privada_ugel');
+
+    // Configurar gráficas de Provincias y Distritos para UGEL
+    const elsProvDist = document.querySelectorAll('.seccion-prov-dist-ugel');
+    if (regionActiva === "Nacional") {
+        elsProvDist.forEach(el => el.style.display = "none");
+    } else {
+        elsProvDist.forEach(el => el.style.display = "block");
+        if (globalData.prov_gen && globalData.prov_gen.length > 0) {
+            renderizarLineasDinamicas(globalData.prov_gen, globalData.general, 'grafica_part_provincia_general_ugel', 'IE - Provincia', 'Provincia');
+            renderizarLineasDinamicas(globalData.prov_pub, globalData.publica, 'grafica_part_provincia_publica_ugel', 'IE - Provincia', 'Provincia');
+            renderizarLineasDinamicas(globalData.prov_pri, globalData.privada, 'grafica_part_provincia_privada_ugel', 'IE - Provincia', 'Provincia');
+
+            const selectProv = document.getElementById("select-provincia-distritos-ugel");
+            const provs = [...new Set(globalData.prov_gen.map(d => d['IE - Provincia']))].sort();
+            selectProv.innerHTML = "";
+            provs.forEach(p => {
+                const opt = document.createElement("option"); opt.value = p; opt.textContent = p; selectProv.appendChild(opt);
+            });
+
+            selectProv.onchange = () => {
+                const prov = selectProv.value;
+                const dGen = globalData.dist_gen.filter(d => d['IE - Provincia'] === prov);
+                const dPub = globalData.dist_pub.filter(d => d['IE - Provincia'] === prov);
+                const dPri = globalData.dist_pri.filter(d => d['IE - Provincia'] === prov);
+                
+                const promProvGen = globalData.prov_gen.filter(d => d['IE - Provincia'] === prov);
+                const promProvPub = globalData.prov_pub.filter(d => d['IE - Provincia'] === prov);
+                const promProvPri = globalData.prov_pri.filter(d => d['IE - Provincia'] === prov);
+
+                renderizarLineasDinamicas(dGen, promProvGen, 'grafica_part_distrito_general_ugel', 'IE - Distrito', 'Distrito');
+                renderizarLineasDinamicas(dPub, promProvPub, 'grafica_part_distrito_publica_ugel', 'IE - Distrito', 'Distrito');
+                renderizarLineasDinamicas(dPri, promProvPri, 'grafica_part_distrito_privada_ugel', 'IE - Distrito', 'Distrito');
+            };
+
+            if (provs.length > 0) {
+                selectProv.value = provs[0];
+                selectProv.onchange();
+            }
+        } else {
+            purgaGraficasProvDist();
+        }
+    }
 
     renderizarDistribucion(globalData.distribucion, 'grafica_distribucion_ugel');
     renderizarTablaTop20(globalData.top20, 'tabla_top20_ugel');
@@ -413,6 +478,7 @@ function actualizarGraficasUgel() {
 
 function actualizarGraficasDre() {
     const tituloUniverso = (regionActiva === "Nacional") ? "Total Nacional" : "Total Regional";
+    
     renderizarRepresentatividadTriple(globalData.rep_gestion, 'grafica_rep_gestion_dre', tituloUniverso);
     renderizarRepresentatividadTriple(globalData.rep_area, 'grafica_rep_area_dre', tituloUniverso);
 
@@ -436,7 +502,9 @@ function actualizarGraficasDre() {
             selectComp.appendChild(opt1); selectGen.appendChild(opt2); selectEquipo.appendChild(opt3); selectTemas.appendChild(opt4);
         });
 
-        renderizarComprobacion(globalData.comprobacion, anios[0], 'tabla_comprobacion_dre');
+        if (globalData.comprobacion) {
+            renderizarComprobacion(globalData.comprobacion, anios[0], 'tabla_comprobacion_dre');
+        }
 
         renderizarGeneroHistorico(globalData.genero_hist, 'grafica_genero_hist_dre');
         renderizarGeneroGrado(globalData.genero_grado, anios[0], 'grafica_genero_grado_dre');
@@ -463,6 +531,57 @@ function actualizarGraficasDre() {
 // =============================================
 // FUNCIONES DE DIBUJADO (PLOTLY E HTML)
 // =============================================
+
+function renderizarLineasDinamicas(datosMultiples, datosPromedio, divId, campoEtiqueta, tituloLeyenda) {
+    const contenedor = document.getElementById(divId);
+    if (!contenedor) return;
+    if (!datosMultiples || datosMultiples.length === 0) { Plotly.purge(divId); contenedor.innerHTML = ""; return; }
+    const elementosUnicos = [...new Set(datosMultiples.map(d => d[campoEtiqueta]))].sort((a, b) => String(a).localeCompare(String(b), 'es'));
+    
+    const traces = elementosUnicos.map(item => {
+        const dataItem = datosMultiples.filter(d => d[campoEtiqueta] === item);
+        return {
+            x: dataItem.map(d => d.Año), 
+            y: dataItem.map(d => d['Porcentaje (%)']), 
+            mode: 'lines+markers', 
+            name: item,
+            customdata: dataItem.map(d => [d.Participantes_Eureka, d.Total_Escale]),
+            line: { width: 1.5 }, 
+            marker: { size: 4 },
+            opacity: 0.5,
+            hovertemplate: `<b>${item}</b><br>Año: %{x}<br>Participación: <b>%{y}%</b><br>IE en Eureka: %{customdata[0]:,}<br>IE totales: %{customdata[1]:,}<extra></extra>`
+        };
+    });
+
+    if (datosPromedio && datosPromedio.length > 0) {
+        traces.push({
+            x: datosPromedio.map(d => d.Año),
+            y: datosPromedio.map(d => d['Porcentaje (%)']),
+            mode: 'lines+markers',
+            name: '<b>PROMEDIO</b>',
+            customdata: datosPromedio.map(d => [d.Participantes_Eureka, d.Total_Escale]),
+            line: { color: '#001a26', width: 4 }, 
+            marker: { size: 8, color: '#001a26' },
+            opacity: 1, 
+            hovertemplate: `<b>PROMEDIO</b><br>Año: %{x}<br>Participación: <b>%{y}%</b><br>IE en Eureka: %{customdata[0]:,}<br>IE totales: %{customdata[1]:,}<extra></extra>`
+        });
+    }
+
+    const maxPorcentajeMulti = Math.max(...datosMultiples.map(d => d['Porcentaje (%)']));
+    const maxPorcentajeProm = datosPromedio && datosPromedio.length > 0 ? Math.max(...datosPromedio.map(d => d['Porcentaje (%)'])) : 0;
+    const maxPorcentaje = Math.max(maxPorcentajeMulti, maxPorcentajeProm) || 1;
+
+    const layout = {
+        paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "#005A7C", family: "Inter" },
+        margin: { t: 20, b: 40, l: 50, r: 150 }, hovermode: "closest", showlegend: true,
+        legend: { y: 0.5, font: { size: 10 }, title: { text: tituloLeyenda } },
+        xaxis: { type: 'category', showgrid: false, linecolor: '#aed1dc', tickfont: { color: "#5c8496" } },
+        yaxis: { title: "Porcentaje de IE participantes (%)", gridcolor: '#dce6eb', zerolinecolor: '#aed1dc', linecolor: '#aed1dc', range: [0, maxPorcentaje * 1.15], tickfont: { color: "#5c8496" } },
+        hoverlabel: { bgcolor: "#ffffff", font: { color: "#005A7C", size: 13 } }
+    };
+
+    Plotly.react(divId, traces, layout, { responsive: true, displayModeBar: false });
+}
 
 function renderizarRepresentatividadTriple(datos, divId, tituloUniverso) {
     const contenedor = document.getElementById(divId);
