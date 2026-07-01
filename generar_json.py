@@ -704,6 +704,48 @@ def procesar_metrica_nac(eureka_nacional, col_titulo, orden_dre, escale_data, eu
         if not df_nac_filtrado.empty:
             exportar_lote_nac_json("Nacional", dre, df_nac_filtrado, limpiar_nombre(dre), col_titulo, df_escale_filtrado, df_ugel_filtrado, df_dre_filtrado)
 
+# =========================================================
+# ORQUESTADOR ETAPA GANADORES
+# =========================================================
+# =========================================================
+# ORQUESTADOR ETAPA GANADORES
+# =========================================================
+def procesar_metrica_ganadores(eureka_ganadores, col_titulo):
+    print("\n--- INICIANDO PROCESAMIENTO: ETAPA GANADORES ---")
+    carpeta = os.path.join("Ganadores", "JSON_nacional")
+    os.makedirs(carpeta, exist_ok=True)
+    
+    df_sec = eureka_ganadores[eureka_ganadores['Estudiante - Nivel'] == 'Secundaria'].copy()
+    if df_sec.empty:
+        pd.DataFrame().to_json(os.path.join(carpeta, "nacional_data_secundaria_podios.json"), orient='records', force_ascii=False)
+        return
+    
+    # Crear Nombres Completos y fusionar con el Grado
+    df_sec['Estudiante_Nombre_Completo'] = df_sec['Estudiante - Nombres'].fillna('') + ' ' + df_sec['Estudiante - Apellidos'].fillna('')
+    df_sec['Estudiante_Info'] = df_sec['Estudiante_Nombre_Completo'] + ' | (' + df_sec['Estudiante - Grado'].fillna('Sin datos').astype(str) + ')'
+    df_sec['Asesor_Nombre_Completo'] = df_sec['Asesor - Nombres'].fillna('') + ' ' + df_sec['Asesor - Apellidos'].fillna('')
+    
+    titulo_col = col_titulo if col_titulo in df_sec.columns else 'Proyecto - Titulo'
+    
+    # Agrupar proyectos de forma segura
+    proyectos = df_sec.groupby([
+        'Año', 'Proyecto - Categoria', 'Proyecto - Area', 'Proyecto - Puesto', 'Proyecto - Codigo',
+        titulo_col, 'IE - DRE', 'IE - UGEL', 'IE - Nombre', 'IE - Codigo modular', 'Asesor_Nombre_Completo'
+    ]).agg(
+        Estudiantes=('Estudiante_Info', lambda x: list(x.unique()))
+    ).reset_index()
+    
+    proyectos.rename(columns={
+        titulo_col: 'Titulo',
+        'Proyecto - Puesto': 'Puesto'
+    }, inplace=True)
+    
+    # Limpiar columna Puesto para asegurar que solo sean números del 1 al 3
+    proyectos['Puesto'] = pd.to_numeric(proyectos['Puesto'].astype(str).str.extract(r'(\d+)')[0], errors='coerce').fillna(99).astype(int)
+    proyectos = proyectos[proyectos['Puesto'] <= 3]
+    
+    proyectos.to_json(os.path.join(carpeta, "nacional_data_secundaria_podios.json"), orient='records', force_ascii=False)
+
 
 # =========================================================
 # 1. CARGA Y LIMPIEZA MAESTRA DE DATOS
@@ -712,6 +754,7 @@ ruta_eureka = 'data/eureka_ugel.parquet'
 ruta_escale = 'data/escale.parquet'
 ruta_eureka_dre = 'data/eureka_dre.parquet'
 ruta_eureka_nacional = 'data/eureka_nacional.parquet'
+ruta_eureka_ganadores = 'data/eureka_ganadores.parquet'
 
 eureka_data = pd.read_parquet(ruta_eureka)
 escale_data = pd.read_parquet(ruta_escale)
@@ -770,5 +813,17 @@ if os.path.exists(ruta_eureka_nacional) and os.path.exists(ruta_eureka_dre):
     procesar_metrica_nac(eureka_nacional_data, col_titulo_val, orden_dre, escale_data, eureka_data, eureka_dre_data)
 else:
     print(f"No se encontró el archivo Nacional en {ruta_eureka_nacional}. Omitiendo etapa Nacional.")
+
+# Ejecutar lógica de Etapa Ganadores
+if os.path.exists(ruta_eureka_ganadores):
+    eureka_ganadores_data = pd.read_parquet(ruta_eureka_ganadores)
+    
+    if 'IE - DRE' in eureka_ganadores_data.columns:
+        eureka_ganadores_data['IE - DRE'] = eureka_ganadores_data['IE - DRE'].str.replace(r'^(DRE|GRE)\s+', '', regex=True, flags=re.IGNORECASE).str.strip()
+        eureka_ganadores_data['IE - DRE'] = eureka_ganadores_data['IE - DRE'].replace({'La libertad': 'La Libertad', 'Ancash': 'Áncash'})
+
+    procesar_metrica_ganadores(eureka_ganadores_data, col_titulo_val)
+else:
+    print(f"No se encontró el archivo Ganadores en {ruta_eureka_ganadores}. Omitiendo etapa Ganadores.")
 
 print("\n¡Éxito absoluto! Todos los archivos JSON están listos.")

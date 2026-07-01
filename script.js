@@ -49,16 +49,37 @@ window.onload = function() {
         if (etapaActiva === "UGEL") purgaGraficasUgel();
         if (etapaActiva === "DRE") purgaGraficasDre();
         if (etapaActiva === "Nacional") purgaGraficasNac();
+        if (etapaActiva === "Ganadores") purgaGraficasGanadores();
         
         etapaActiva = nuevaEtapa;
         
-        // Reglas de negocio añadidas para Etapa Nacional
         const selectNivel = document.getElementById("nivel");
-        if (nuevaEtapa === "Nacional") {
+        const selectRegion = document.getElementById("select-region");
+        const contenedorMapaSide = document.getElementById("peru-map-container");
+        
+        // Regla 1: Bloquear Secundaria
+        if (nuevaEtapa === "Nacional" || nuevaEtapa === "Ganadores") {
             selectNivel.value = "Secundaria";
             selectNivel.disabled = true;
         } else {
             selectNivel.disabled = false;
+        }
+
+        // Regla 2: Bloquear Mapa y Selector Regional en Ganadores
+        if (nuevaEtapa === "Ganadores") {
+            selectRegion.value = "Nacional";
+            regionActiva = "Nacional"; // Fuerza la variable global a Nacional
+            selectRegion.disabled = true;
+            if (contenedorMapaSide) {
+                contenedorMapaSide.style.pointerEvents = "none";
+                contenedorMapaSide.style.opacity = "0.5";
+            }
+        } else {
+            selectRegion.disabled = false;
+            if (contenedorMapaSide) {
+                contenedorMapaSide.style.pointerEvents = "auto";
+                contenedorMapaSide.style.opacity = "1";
+            }
         }
         
         document.getElementById("contenedor-etapa-ugel").style.display = "none";
@@ -81,15 +102,17 @@ window.onload = function() {
         } else if (etapaActiva === "Ganadores") {
             document.getElementById("contenedor-etapa-ganadores").style.display = "block";
             subtitulo.textContent = "Desde 2019 al 2025";
-        }
-    });
-
-    document.getElementById("nivel").addEventListener("change", () => {
-        if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional") {
             cargarDataRegion(regionActiva);
         }
     });
 
+    document.getElementById("nivel").addEventListener("change", () => {
+        if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional" || etapaActiva === "Ganadores") {
+            cargarDataRegion(regionActiva);
+        }
+    });
+
+    // Eventos select etapa UGEL
     document.getElementById("select-anio-composicion_ugel").addEventListener("change", (e) => {
         renderizarComposicion(globalData.composicion, parseInt(e.target.value), 'grafica_composicion_ugel');
     });
@@ -116,6 +139,7 @@ window.onload = function() {
         renderizarTemasSubplots(globalData.temas_area, anio, 'Area', 'grafica_temas_area_ugel', false, colorBrand);
     });
 
+    // Eventos select etapa DRE
     document.getElementById("select-anio-comprobacion_dre").addEventListener("change", (e) => {
         renderizarComprobacion(globalData.comprobacion, parseInt(e.target.value), 'tabla_comprobacion_dre');
     });
@@ -169,6 +193,11 @@ window.onload = function() {
         renderizarTemasSubplots(globalData.temas_area, anio, 'Area', 'grafica_temas_area_nac', false, colorBrand);
     });
 
+    // Eventos select etapa Ganadores
+    document.getElementById("select-anio-ganadores").addEventListener("change", (e) => {
+        renderizarPodios(globalData.podios, parseInt(e.target.value), 'podios_ganadores_container');
+    });
+
     cargarDataRegion("Nacional");
 };
 
@@ -185,7 +214,7 @@ function configurarEventosMapa() {
                 path.classList.add("region-active");
                 if (selReg) selReg.value = nombre;
                 
-                if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional") {
+                if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional" || etapaActiva === "Ganadores") {
                     cargarDataRegion(nombre);
                 } else {
                     regionActiva = nombre;
@@ -203,7 +232,7 @@ function configurarEventosMapa() {
                 const path = document.getElementById(idMapa);
                 if (path) path.classList.add("region-active");
             }
-            if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional") {
+            if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional" || etapaActiva === "Ganadores") {
                 cargarDataRegion(nombre);
             } else {
                 regionActiva = nombre;
@@ -394,6 +423,23 @@ async function cargarDataRegion(nombreRegion) {
             console.error("Error cargando archivos JSON Nacional:", error);
         }
     }
+    
+    // ORQUESTACIÓN ETAPA GANADORES
+    else if (etapaActiva === "Ganadores") {
+        const archivos_gan = [
+            { key: "podios", file: `Ganadores/JSON_nacional/nacional_data_secundaria_podios.json` }
+        ];
+        
+        try {
+            const promises = archivos_gan.map(a => fetch(a.file).then(r => r.ok ? r.json() : null));
+            const resultados = await Promise.all(promises);
+            globalData = {}; 
+            archivos_gan.forEach((a, index) => { globalData[a.key] = resultados[index]; });
+            actualizarGraficasGanadores();
+        } catch (error) {
+            console.error("Error cargando archivos JSON Ganadores:", error);
+        }
+    }
 }
 
 // =============================================
@@ -464,6 +510,11 @@ function purgaGraficasNac() {
     
     const tablaComp = document.getElementById('tabla_comprobacion_nac');
     if(tablaComp) tablaComp.innerHTML = "";
+}
+
+function purgaGraficasGanadores() {
+    const cont = document.getElementById('podios_ganadores_container');
+    if (cont) cont.innerHTML = "";
 }
 
 function actualizarGraficasUgel() {
@@ -679,9 +730,119 @@ function actualizarGraficasNac() {
     }
 }
 
+function actualizarGraficasGanadores() {
+    const selectAnio = document.getElementById("select-anio-ganadores");
+    
+    if (globalData.podios && globalData.podios.length > 0) {
+        const anios = [...new Set(globalData.podios.map(d => d.Año))].sort((a,b) => b - a);
+        
+        selectAnio.innerHTML = "";
+        anios.forEach(a => {
+            const opt = document.createElement("option"); opt.value = a; opt.textContent = a;
+            selectAnio.appendChild(opt);
+        });
+        
+        renderizarPodios(globalData.podios, anios[0], 'podios_ganadores_container');
+    } else {
+        selectAnio.innerHTML = "<option>Sin datos</option>";
+        purgaGraficasGanadores();
+    }
+}
+
 // =============================================
 // FUNCIONES DE DIBUJADO (PLOTLY E HTML)
 // =============================================
+
+function renderizarPodios(datos, anio, divId) {
+    const contenedor = document.getElementById(divId);
+    if (!contenedor) return;
+    
+    if (!datos || datos.length === 0) {
+        contenedor.innerHTML = "<p style='text-align:center; padding: 20px; color:#64748b;'>No hay datos de ganadores disponibles.</p>";
+        return;
+    }
+    
+    const datosAnio = datos.filter(d => d.Año === anio);
+    if (datosAnio.length === 0) {
+        contenedor.innerHTML = "<p style='text-align:center; padding: 20px; color:#64748b;'>No hay ganadores registrados para este año.</p>";
+        return;
+    }
+
+    let html = '';
+    
+    // 1. Ordenar categorías alfabéticamente en reversa (de la Z a la A)
+    const categorias = [...new Set(datosAnio.map(d => d['Proyecto - Categoria']))].sort((a, b) => b.localeCompare(a, 'es'));
+
+    categorias.forEach(cat => {
+        const dataCat = datosAnio.filter(d => d['Proyecto - Categoria'] === cat);
+        // 2. Ordenar áreas alfabéticamente (de la A a la Z)
+        const areas = [...new Set(dataCat.map(d => d['Proyecto - Area']))].sort((a, b) => a.localeCompare(b, 'es'));
+        
+        areas.forEach(area => {
+            const dataArea = dataCat.filter(d => d['Proyecto - Area'] === area);
+            
+            html += `<h3 class="area-title">${cat} - ${area}</h3>`;
+            html += `<div class="grid-podium-block podium-container">`;
+
+            // Configuración del orden físico del podio (2° Puesto, 1° Puesto, 3° Puesto)
+            const puestosOrdenados = [2, 1, 3];
+            const configPuestos = {
+                1: { colClass: 'col-1st', stepClass: 'step-gold', label: '🥇 1° Puesto' },
+                2: { colClass: 'col-2nd', stepClass: 'step-silver', label: '🥈 2° Puesto' },
+                3: { colClass: 'col-3rd', stepClass: 'step-bronze', label: '🥉 3° Puesto' }
+            };
+
+            // ---- CAPA 1: TÍTULOS (Se imprimen primero en el Grid en la fila 1) ----
+            puestosOrdenados.forEach(puesto => {
+                const config = configPuestos[puesto];
+                const proyectos = dataArea.filter(d => d.Puesto === puesto);
+                
+                let tituloHtml = '<span style="color:#94a3b8; font-style:italic;">Sin registro</span>';
+                if (proyectos.length > 0) {
+                    tituloHtml = proyectos.map(p => `"${p.Titulo}"`).join('<br><br> y <br><br>');
+                }
+                html += `<div class="row-title ${config.colClass}">${tituloHtml}</div>`;
+            });
+
+            // ---- CAPA 2: ESCALONES SÓLIDOS (Fila 2 en el Grid con alturas y colores fijos) ----
+            puestosOrdenados.forEach(puesto => {
+                const config = configPuestos[puesto];
+                const proyectos = dataArea.filter(d => d.Puesto === puesto);
+                let opacity = proyectos.length === 0 ? 'opacity: 0.25;' : '';
+                
+                html += `<div class="row-step ${config.colClass} ${config.stepClass}" style="${opacity}">${config.label}</div>`;
+            });
+            
+            // ---- CAPA 3: FOSO DE DATOS (Fila 3 en el Grid alineado debajo de cada bloque) ----
+            puestosOrdenados.forEach(puesto => {
+                const config = configPuestos[puesto];
+                const proyectos = dataArea.filter(d => d.Puesto === puesto);
+                
+                let dataHtml = '';
+                if (proyectos.length > 0) {
+                    dataHtml = proyectos.map(p => `
+                        <p><strong>DRE:</strong> ${p['IE - DRE']}</p>
+                        <p><strong>UGEL:</strong> ${p['IE - UGEL']}</p>
+                        <p><strong>Institución Educativa:</strong> ${p['IE - Nombre']}</p>
+                        <p><strong>Código Modular:</strong> ${p['IE - Codigo modular']}</p>
+                        <p style="margin-bottom:2px;"><strong>Estudiantes:</strong></p>
+                        <ul style="margin: 0 0 10px 18px; padding: 0;">
+                            ${p.Estudiantes.map(e => `<li>${e}</li>`).join('')}
+                        </ul>
+                        <p><strong>Asesor:</strong> ${p.Asesor_Nombre_Completo}</p>
+                    `).join('<hr style="margin: 15px 0; border: 0; border-top: 1px dashed #cbd5e1;">');
+                } else {
+                    dataHtml = `<div style="text-align:center; padding:20px; color:#94a3b8; font-style:italic;">Puesto Desierto</div>`;
+                }
+                html += `<div class="row-data ${config.colClass}">${dataHtml}</div>`;
+            });
+            
+            html += `</div>`;
+        });
+    });
+
+    contenedor.innerHTML = html;
+}
 
 function renderizarLineasDinamicas(datosMultiples, datosPromedio, divId, campoEtiqueta, tituloLeyenda) {
     const contenedor = document.getElementById(divId);
