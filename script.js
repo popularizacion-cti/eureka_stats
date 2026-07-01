@@ -48,8 +48,18 @@ window.onload = function() {
         
         if (etapaActiva === "UGEL") purgaGraficasUgel();
         if (etapaActiva === "DRE") purgaGraficasDre();
+        if (etapaActiva === "Nacional") purgaGraficasNac();
         
         etapaActiva = nuevaEtapa;
+        
+        // Reglas de negocio añadidas para Etapa Nacional
+        const selectNivel = document.getElementById("nivel");
+        if (nuevaEtapa === "Nacional") {
+            selectNivel.value = "Secundaria";
+            selectNivel.disabled = true;
+        } else {
+            selectNivel.disabled = false;
+        }
         
         document.getElementById("contenedor-etapa-ugel").style.display = "none";
         document.getElementById("contenedor-etapa-dre").style.display = "none";
@@ -67,6 +77,7 @@ window.onload = function() {
         } else if (etapaActiva === "Nacional") {
             document.getElementById("contenedor-etapa-nacional").style.display = "block";
             subtitulo.textContent = "Desde 2019 al 2025";
+            cargarDataRegion(regionActiva);
         } else if (etapaActiva === "Ganadores") {
             document.getElementById("contenedor-etapa-ganadores").style.display = "block";
             subtitulo.textContent = "Desde 2019 al 2025";
@@ -74,7 +85,7 @@ window.onload = function() {
     });
 
     document.getElementById("nivel").addEventListener("change", () => {
-        if (etapaActiva === "UGEL" || etapaActiva === "DRE") {
+        if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional") {
             cargarDataRegion(regionActiva);
         }
     });
@@ -130,6 +141,33 @@ window.onload = function() {
         renderizarTemasSubplots(globalData.temas_cat, anio, 'Categoria', 'grafica_temas_cat_dre', false, colorAccent);
         renderizarTemasSubplots(globalData.temas_area, anio, 'Area', 'grafica_temas_area_dre', false, colorBrand);
     });
+    
+    // Eventos select etapa Nacional
+    document.getElementById("select-anio-comprobacion_nac").addEventListener("change", (e) => {
+        renderizarComprobacionNac(globalData.comprobacion, parseInt(e.target.value), 'tabla_comprobacion_nac');
+    });
+
+    document.getElementById("select-anio-genero_nac").addEventListener("change", (e) => {
+        const anio = parseInt(e.target.value);
+        renderizarGeneroGrado(globalData.genero_grado, anio, 'grafica_genero_grado_nac');
+        renderizarGeneroCategoria(globalData.genero_cat, anio, 'grafica_genero_cat_nac');
+        renderizarGeneroArea(globalData.genero_area, anio, 'grafica_genero_area_nac');
+    });
+
+    document.getElementById("select-anio-equipo_nac").addEventListener("change", (e) => {
+        const anio = parseInt(e.target.value);
+        renderizarEquipoGrado(globalData.equipo_grado, anio, 'grafica_equipo_grado_nac');
+        renderizarEquipoCategoria(globalData.equipo_cat, anio, 'grafica_equipo_cat_nac');
+        renderizarEquipoArea(globalData.equipo_area, anio, 'grafica_equipo_area_nac');
+    });
+
+    document.getElementById("select-anio-temas_nac").addEventListener("change", (e) => {
+        const anio = parseInt(e.target.value);
+        renderizarTemasGeneral(globalData.temas_general, anio, 'grafica_temas_general_nac');
+        renderizarTemasSubplots(globalData.temas_grado, anio, 'Grado', 'grafica_temas_grado_nac', true, colorBrand);
+        renderizarTemasSubplots(globalData.temas_cat, anio, 'Categoria', 'grafica_temas_cat_nac', false, colorAccent);
+        renderizarTemasSubplots(globalData.temas_area, anio, 'Area', 'grafica_temas_area_nac', false, colorBrand);
+    });
 
     cargarDataRegion("Nacional");
 };
@@ -147,7 +185,7 @@ function configurarEventosMapa() {
                 path.classList.add("region-active");
                 if (selReg) selReg.value = nombre;
                 
-                if (etapaActiva === "UGEL" || etapaActiva === "DRE") {
+                if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional") {
                     cargarDataRegion(nombre);
                 } else {
                     regionActiva = nombre;
@@ -165,7 +203,7 @@ function configurarEventosMapa() {
                 const path = document.getElementById(idMapa);
                 if (path) path.classList.add("region-active");
             }
-            if (etapaActiva === "UGEL" || etapaActiva === "DRE") {
+            if (etapaActiva === "UGEL" || etapaActiva === "DRE" || etapaActiva === "Nacional") {
                 cargarDataRegion(nombre);
             } else {
                 regionActiva = nombre;
@@ -313,6 +351,49 @@ async function cargarDataRegion(nombreRegion) {
             console.error("Error cargando archivos JSON DRE:", error);
         }
     }
+    
+    // ORQUESTACIÓN ETAPA NACIONAL
+    else if (etapaActiva === "Nacional") {
+        
+        const sectionComprobacionNac = document.getElementById("section_comprobacion_nac");
+        if (sectionComprobacionNac) {
+            sectionComprobacionNac.style.display = esNacional ? "block" : "none";
+        }
+        
+        const archivos_nac = [
+            { key: "top20", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_top20.json` },
+            { key: "rep_gestion", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_rep_gestion.json` },
+            { key: "rep_area", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_rep_area.json` },
+            { key: "genero_hist", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_genero_hist.json` },
+            { key: "genero_cat", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_genero_cat.json` },
+            { key: "genero_area", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_genero_area.json` },
+            { key: "genero_grado", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_genero_grado.json` },
+            { key: "equipo_hist", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_equipo_hist.json` },
+            { key: "equipo_cat", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_equipo_cat.json` },
+            { key: "equipo_area", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_equipo_area.json` },
+            { key: "equipo_grado", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_equipo_grado.json` },
+            { key: "temas_general", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_temas_general.json` },
+            { key: "temas_grado", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_temas_grado.json` },
+            { key: "temas_cat", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_temas_cat.json` },
+            { key: "temas_area", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_temas_area.json` }
+        ];
+
+        if (esNacional) {
+            archivos_nac.push(
+                { key: "comprobacion", file: `${carpetaDestino}/${nombreLimpio}_data_${nivelSeleccionado}_comprobacion.json` }
+            );
+        }
+
+        try {
+            const promises = archivos_nac.map(a => fetch(a.file).then(r => r.ok ? r.json() : null));
+            const resultados = await Promise.all(promises);
+            globalData = {}; 
+            archivos_nac.forEach((a, index) => { globalData[a.key] = resultados[index]; });
+            actualizarGraficasNac();
+        } catch (error) {
+            console.error("Error cargando archivos JSON Nacional:", error);
+        }
+    }
 }
 
 // =============================================
@@ -364,6 +445,24 @@ function purgaGraficasDre() {
     });
     
     const tablaComp = document.getElementById('tabla_comprobacion_dre');
+    if(tablaComp) tablaComp.innerHTML = "";
+}
+
+function purgaGraficasNac() {
+    const listIds = [
+        'grafica_rep_gestion_nac', 'grafica_rep_area_nac',
+        'grafica_genero_hist_nac', 'grafica_genero_grado_nac', 
+        'grafica_genero_cat_nac', 'grafica_genero_area_nac', 'grafica_equipo_hist_nac', 
+        'grafica_equipo_grado_nac', 'grafica_equipo_cat_nac', 'grafica_equipo_area_nac', 
+        'grafica_temas_general_nac', 'grafica_temas_grado_nac', 'grafica_temas_cat_nac', 
+        'grafica_temas_area_nac'
+    ];
+    listIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) Plotly.purge(id);
+    });
+    
+    const tablaComp = document.getElementById('tabla_comprobacion_nac');
     if(tablaComp) tablaComp.innerHTML = "";
 }
 
@@ -528,6 +627,58 @@ function actualizarGraficasDre() {
     }
 }
 
+function actualizarGraficasNac() {
+    const tituloUniverso = (regionActiva === "Nacional") ? "Total Nacional" : "Total Regional";
+    
+    renderizarRepresentatividadCuadruple(globalData.rep_gestion, 'grafica_rep_gestion_nac', tituloUniverso);
+    renderizarRepresentatividadCuadruple(globalData.rep_area, 'grafica_rep_area_nac', tituloUniverso);
+
+    renderizarTablaTop20(globalData.top20, 'tabla_top20_nac');
+
+    const selectComp = document.getElementById("select-anio-comprobacion_nac");
+    const selectGen = document.getElementById("select-anio-genero_nac");
+    const selectEquipo = document.getElementById("select-anio-equipo_nac");
+    const selectTemas = document.getElementById("select-anio-temas_nac");
+
+    if (globalData.genero_hist && globalData.genero_hist.length > 0) {
+        const anios = [...new Set(globalData.genero_hist.map(d => d.Año))].sort((a,b) => b - a);
+        
+        selectComp.innerHTML = ""; selectGen.innerHTML = ""; selectEquipo.innerHTML = ""; selectTemas.innerHTML = "";
+        
+        anios.forEach(a => {
+            const opt1 = document.createElement("option"); opt1.value = a; opt1.textContent = a;
+            const opt2 = document.createElement("option"); opt2.value = a; opt2.textContent = a;
+            const opt3 = document.createElement("option"); opt3.value = a; opt3.textContent = a;
+            const opt4 = document.createElement("option"); opt4.value = a; opt4.textContent = a;
+            selectComp.appendChild(opt1); selectGen.appendChild(opt2); selectEquipo.appendChild(opt3); selectTemas.appendChild(opt4);
+        });
+
+        if (globalData.comprobacion) {
+            renderizarComprobacionNac(globalData.comprobacion, anios[0], 'tabla_comprobacion_nac');
+        }
+
+        renderizarGeneroHistorico(globalData.genero_hist, 'grafica_genero_hist_nac');
+        renderizarGeneroGrado(globalData.genero_grado, anios[0], 'grafica_genero_grado_nac');
+        renderizarGeneroCategoria(globalData.genero_cat, anios[0], 'grafica_genero_cat_nac');
+        renderizarGeneroArea(globalData.genero_area, anios[0], 'grafica_genero_area_nac');
+        
+        renderizarEquipoHistorico(globalData.equipo_hist, 'grafica_equipo_hist_nac');
+        renderizarEquipoGrado(globalData.equipo_grado, anios[0], 'grafica_equipo_grado_nac');
+        renderizarEquipoCategoria(globalData.equipo_cat, anios[0], 'grafica_equipo_cat_nac');
+        renderizarEquipoArea(globalData.equipo_area, anios[0], 'grafica_equipo_area_nac');
+
+        renderizarTemasGeneral(globalData.temas_general, anios[0], 'grafica_temas_general_nac');
+        renderizarTemasSubplots(globalData.temas_grado, anios[0], 'Grado', 'grafica_temas_grado_nac', true, colorBrand);
+        renderizarTemasSubplots(globalData.temas_cat, anios[0], 'Categoria', 'grafica_temas_cat_nac', false, colorAccent);
+        renderizarTemasSubplots(globalData.temas_area, anios[0], 'Area', 'grafica_temas_area_nac', false, colorBrand);
+
+    } else {
+        selectComp.innerHTML = "<option>Sin datos</option>"; selectGen.innerHTML = "<option>Sin datos</option>";
+        selectEquipo.innerHTML = "<option>Sin datos</option>"; selectTemas.innerHTML = "<option>Sin datos</option>";
+        purgaGraficasNac();
+    }
+}
+
 // =============================================
 // FUNCIONES DE DIBUJADO (PLOTLY E HTML)
 // =============================================
@@ -629,6 +780,61 @@ function renderizarRepresentatividadTriple(datos, divId, tituloUniverso) {
     Plotly.react(divId, [trace1, trace2, trace3], layout, { responsive: true, displayModeBar: false });
 }
 
+function renderizarRepresentatividadCuadruple(datos, divId, tituloUniverso) {
+    const contenedor = document.getElementById(divId);
+    if (!contenedor) return;
+    if (!datos || datos.length === 0) { Plotly.purge(divId); contenedor.innerHTML = ""; return; }
+
+    const categorias = datos.map(d => d.Categoria);
+    const valUniverso = datos.map(d => d.Total_Universo || 0);
+    const valFaseUgel = datos.map(d => d.Fase_UGEL || 0);
+    const valFaseDre = datos.map(d => d.Fase_DRE || 0);
+    const valFaseNac = datos.map(d => d.Fase_Nacional || 0);
+
+    const trace1 = {
+        values: valUniverso, labels: categorias, type: 'pie', name: tituloUniverso,
+        domain: { row: 0, column: 0 }, hole: .4, textinfo: 'label+percent', textfont: { size: 10 },
+        marker: { colors: paletaPasteles },
+        hovertemplate: `<b>%{label}</b><br>${tituloUniverso}<br>Total: %{value}<br>Porcentaje: %{percent}<extra></extra>`
+    };
+
+    const trace2 = {
+        values: valFaseUgel, labels: categorias, type: 'pie', name: "Participantes - UGEL",
+        domain: { row: 0, column: 1 }, hole: .4, textinfo: 'label+percent', textfont: { size: 10 },
+        marker: { colors: paletaPasteles },
+        hovertemplate: `<b>%{label}</b><br>Participantes - Etapa UGEL<br>Total: %{value}<br>Porcentaje: %{percent}<extra></extra>`
+    };
+
+    const trace3 = {
+        values: valFaseDre, labels: categorias, type: 'pie', name: "Participantes - DRE",
+        domain: { row: 0, column: 2 }, hole: .4, textinfo: 'label+percent', textfont: { size: 10 },
+        marker: { colors: paletaPasteles },
+        hovertemplate: `<b>%{label}</b><br>Participantes - Etapa DRE<br>Total: %{value}<br>Porcentaje: %{percent}<extra></extra>`
+    };
+
+    const trace4 = {
+        values: valFaseNac, labels: categorias, type: 'pie', name: "Participantes - Nacional",
+        domain: { row: 0, column: 3 }, hole: .4, textinfo: 'label+percent', textfont: { size: 10 },
+        marker: { colors: paletaPasteles },
+        hovertemplate: `<b>%{label}</b><br>Participantes - Etapa Nacional<br>Total: %{value}<br>Porcentaje: %{percent}<extra></extra>`
+    };
+
+    const layout = {
+        paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "#005A7C", family: "Inter" },
+        margin: { t: 60, b: 20, l: 0, r: 0 }, showlegend: false,
+        grid: { rows: 1, columns: 4 },
+        annotations: [
+            { text: tituloUniverso, font: { size: 12, color: "#005A7C", family: "Inter", weight: "bold" }, showarrow: false, x: 0.12, y: 1.15, xanchor: "center" },
+            { text: "Participantes UGEL", font: { size: 12, color: "#005A7C", family: "Inter", weight: "bold" }, showarrow: false, x: 0.37, y: 1.15, xanchor: "center" },
+            { text: "Participantes DRE", font: { size: 12, color: "#005A7C", family: "Inter", weight: "bold" }, showarrow: false, x: 0.62, y: 1.15, xanchor: "center" },
+            { text: "Participantes Nacional", font: { size: 12, color: "#005A7C", family: "Inter", weight: "bold" }, showarrow: false, x: 0.88, y: 1.15, xanchor: "center" }
+        ],
+        hoverlabel: { bgcolor: "#ffffff", bordercolor: "#005A7C", font: { color: "#005A7C", size: 13 } }
+    };
+
+    Plotly.react(divId, [trace1, trace2, trace3, trace4], layout, { responsive: true, displayModeBar: false });
+}
+
 function renderizarComprobacion(datos, anio, divId) {
     const contenedor = document.getElementById(divId);
     if (!contenedor) return;
@@ -658,6 +864,56 @@ function renderizarComprobacion(datos, anio, divId) {
         
         categoriasAreas.forEach(ca => {
             const registro = datosAnio.find(d => d['IE - UGEL'] === ugel && d.Cat_Area === ca);
+            const cant = registro ? registro.Cant : 0;
+            let icono = '';
+            let colorStr = '';
+
+            if (cant === 1) {
+                icono = '✅'; colorStr = '#16a34a'; 
+            } else if (cant === 2) {
+                icono = '⚠️'; colorStr = '#ea580c'; 
+            } else {
+                icono = '❌'; colorStr = '#dc2626'; 
+            }
+
+            html += `<td style="color: ${colorStr}; font-weight: 700;">${cant} ${icono}</td>`;
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    contenedor.innerHTML = html;
+}
+
+function renderizarComprobacionNac(datos, anio, divId) {
+    const contenedor = document.getElementById(divId);
+    if (!contenedor) return;
+
+    if (!datos || datos.length === 0) {
+        contenedor.innerHTML = "<p style='text-align:center; padding: 20px; color:#64748b;'>Esta auditoría solo está disponible al seleccionar Nacional en el panel izquierdo.</p>";
+        return;
+    }
+
+    const datosAnio = datos.filter(d => d.Año === anio);
+    if (datosAnio.length === 0) {
+        contenedor.innerHTML = "<p style='text-align:center; padding: 20px; color:#64748b;'>No hay datos para este año.</p>";
+        return;
+    }
+
+    const dres = [...new Set(datosAnio.map(d => d['IE - DRE']))].sort((a, b) => a.localeCompare(b, 'es'));
+    const categoriasAreas = [...new Set(datosAnio.map(d => d.Cat_Area))].sort();
+
+    let html = '<table class="data-table" style="text-align: center;"><thead><tr><th style="text-align: left; background-color: #001a26;">DRE</th>';
+    categoriasAreas.forEach(ca => {
+        html += `<th>${ca}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    dres.forEach(dre => {
+        html += `<tr><td style="text-align: left; font-weight: bold; color: #005A7C;">${dre}</td>`;
+        
+        categoriasAreas.forEach(ca => {
+            const registro = datosAnio.find(d => d['IE - DRE'] === dre && d.Cat_Area === ca);
             const cant = registro ? registro.Cant : 0;
             let icono = '';
             let colorStr = '';

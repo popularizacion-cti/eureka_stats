@@ -525,12 +525,193 @@ def procesar_metrica_dre(eureka_dre, col_titulo, orden_dre, escale_data, eureka_
         if not df_dre_filtrado.empty:
             exportar_lote_dre_json("DRE", dre, df_dre_filtrado, limpiar_nombre(dre), col_titulo, df_escale_filtrado, df_ugel_filtrado)
 
+
+# =========================================================
+# ORQUESTADOR ETAPA NACIONAL
+# =========================================================
+def exportar_lote_nac_json(etapa, nombre_region, df_region, prefijo, col_titulo, df_escale_region, df_eureka_ugel_region, df_eureka_dre_region):
+    carpeta = os.path.join(etapa, f"JSON_{prefijo}")
+    os.makedirs(carpeta, exist_ok=True)
+    
+    for nivel in ['Secundaria', 'Primaria']:
+        niv_low = nivel.lower()
+        df_niv = df_region[df_region['Estudiante - Nivel'] == nivel]
+        
+        if df_niv.empty:
+            continue
+            
+        top20 = df_niv.groupby(['IE - DRE', 'IE - UGEL', 'IE - Codigo modular', 'IE - Nombre'])['Proyecto - Codigo'].nunique().reset_index()
+        top20.rename(columns={'Proyecto - Codigo': 'Cant_Proyectos'}, inplace=True)
+        top20 = top20.sort_values(by='Cant_Proyectos', ascending=False).head(20)
+        top20.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_top20.json"), orient='records', force_ascii=False)
+
+        # 1.5 Representatividad (Gestión y Área Geográfica) - Comparativa Cuádruple
+        if df_escale_region is not None and df_eureka_ugel_region is not None and df_eureka_dre_region is not None:
+            esc_niv = df_escale_region[df_escale_region['IE - Nivel'] == nivel]
+            eu_ugel_niv_unicos = df_eureka_ugel_region[df_eureka_ugel_region['Estudiante - Nivel'] == nivel].drop_duplicates(subset=['IE - Codigo modular'])
+            eu_dre_niv_unicos = df_eureka_dre_region[df_eureka_dre_region['Estudiante - Nivel'] == nivel].drop_duplicates(subset=['IE - Codigo modular'])
+            eu_nac_niv_unicos = df_niv.drop_duplicates(subset=['IE - Codigo modular'])
+
+            # Para Gestión
+            esc_gest = esc_niv['IE - Gestion'].value_counts().reset_index(); esc_gest.columns = ['Categoria', 'Total_Universo']
+            eu_u_gest = eu_ugel_niv_unicos['IE - Gestion'].value_counts().reset_index(); eu_u_gest.columns = ['Categoria', 'Fase_UGEL']
+            eu_d_gest = eu_dre_niv_unicos['IE - Gestion'].value_counts().reset_index(); eu_d_gest.columns = ['Categoria', 'Fase_DRE']
+            eu_n_gest = eu_nac_niv_unicos['IE - Gestion'].value_counts().reset_index(); eu_n_gest.columns = ['Categoria', 'Fase_Nacional']
+            
+            rep_gest = pd.merge(esc_gest, eu_u_gest, on='Categoria', how='outer')
+            rep_gest = pd.merge(rep_gest, eu_d_gest, on='Categoria', how='outer')
+            rep_gest = pd.merge(rep_gest, eu_n_gest, on='Categoria', how='outer').fillna(0)
+            rep_gest.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_rep_gestion.json"), orient='records', force_ascii=False)
+
+            # Para Área Geográfica
+            esc_area = esc_niv['IE - Area geografica'].value_counts().reset_index(); esc_area.columns = ['Categoria', 'Total_Universo']
+            eu_u_area = eu_ugel_niv_unicos['IE - Area geografica'].value_counts().reset_index(); eu_u_area.columns = ['Categoria', 'Fase_UGEL']
+            eu_d_area = eu_dre_niv_unicos['IE - Area geografica'].value_counts().reset_index(); eu_d_area.columns = ['Categoria', 'Fase_DRE']
+            eu_n_area = eu_nac_niv_unicos['IE - Area geografica'].value_counts().reset_index(); eu_n_area.columns = ['Categoria', 'Fase_Nacional']
+            
+            rep_area = pd.merge(esc_area, eu_u_area, on='Categoria', how='outer')
+            rep_area = pd.merge(rep_area, eu_d_area, on='Categoria', how='outer')
+            rep_area = pd.merge(rep_area, eu_n_area, on='Categoria', how='outer').fillna(0)
+            rep_area.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_rep_area.json"), orient='records', force_ascii=False)
+        
+        # 2. Matriz de Comprobación (Solo aplica a nivel Nacional)
+        if nombre_region == "Nacional" and df_escale_region is not None:
+            # Extraemos todas las DREs a nivel nacional
+            dres_nacional = df_escale_region['IE - DRE'].dropna().unique()
+            comprobacion_list = []
+            
+            for anio in sorted(df_niv['Año'].unique()):
+                df_anio = df_niv[df_niv['Año'] == anio].copy()
+                if df_anio.empty: continue
+                
+                df_anio['Cat_Area'] = df_anio['Proyecto - Categoria'] + " | " + df_anio['Proyecto - Area']
+                cats_areas = df_anio['Cat_Area'].unique()
+                
+                conteo = df_anio.groupby(['IE - DRE', 'Cat_Area'])['Proyecto - Codigo'].nunique().reset_index()
+                conteo.rename(columns={'Proyecto - Codigo': 'Cant'}, inplace=True)
+                
+                # Relleno artificial: Matriz de DREs x Categorías/Áreas
+                combinaciones = pd.DataFrame(list(itertools.product(dres_nacional, cats_areas)), columns=['IE - DRE', 'Cat_Area'])
+                
+                matriz = pd.merge(combinaciones, conteo, on=['IE - DRE', 'Cat_Area'], how='left').fillna(0)
+                matriz['Cant'] = matriz['Cant'].astype(int)
+                matriz['Año'] = int(anio)
+                
+                comprobacion_list.append(matriz)
+                
+            if comprobacion_list:
+                pd.concat(comprobacion_list, ignore_index=True).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_comprobacion.json"), orient='records', force_ascii=False)
+        
+        # 3. Brechas de Género
+        df_gen = df_niv.dropna(subset=['Estudiante - Numero de documento', 'Proyecto - Area', 'Proyecto - Categoria']).copy()
+        df_gen['Estudiante - Genero'] = df_gen['Estudiante - Genero'].apply(lambda x: x if pd.notna(x) and x in ['Femenino', 'Masculino'] else 'Sin datos')
+        
+        gen_hist = df_gen.groupby(['Año', 'Estudiante - Genero'])['Estudiante - Numero de documento'].nunique().reset_index()
+        gen_hist.rename(columns={'Estudiante - Numero de documento': 'Cant_Estudiantes'}, inplace=True)
+        gen_hist['Porcentaje'] = gen_hist.groupby('Año')['Cant_Estudiantes'].transform(lambda x: (x / x.sum()) * 100).round(1)
+        gen_hist.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_genero_hist.json"), orient='records', force_ascii=False)
+
+        gen_cat = df_gen.groupby(['Año', 'Proyecto - Categoria', 'Estudiante - Genero'])['Estudiante - Numero de documento'].nunique().reset_index()
+        gen_cat.rename(columns={'Estudiante - Numero de documento': 'Cant_Estudiantes'}, inplace=True)
+        gen_cat['Porcentaje'] = gen_cat.groupby(['Año', 'Proyecto - Categoria'])['Cant_Estudiantes'].transform(lambda x: (x / x.sum()) * 100).round(1)
+        gen_cat.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_genero_cat.json"), orient='records', force_ascii=False)
+
+        gen_area = df_gen.groupby(['Año', 'Proyecto - Categoria', 'Proyecto - Area', 'Estudiante - Genero'])['Estudiante - Numero de documento'].nunique().reset_index()
+        gen_area.rename(columns={'Estudiante - Numero de documento': 'Cant_Estudiantes'}, inplace=True)
+        gen_area['Porcentaje'] = gen_area.groupby(['Año', 'Proyecto - Categoria', 'Proyecto - Area'])['Cant_Estudiantes'].transform(lambda x: (x / x.sum()) * 100).round(1)
+        gen_area.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_genero_area.json"), orient='records', force_ascii=False)
+        
+        df_gen_grado_filtro = df_gen.dropna(subset=['Estudiante - Grado'])
+        gen_grado = df_gen_grado_filtro.groupby(['Año', 'Estudiante - Grado', 'Estudiante - Genero'])['Estudiante - Numero de documento'].nunique().reset_index()
+        gen_grado.rename(columns={'Estudiante - Numero de documento': 'Cant_Estudiantes'}, inplace=True)
+        gen_grado['Porcentaje'] = gen_grado.groupby(['Año', 'Estudiante - Grado'])['Cant_Estudiantes'].transform(lambda x: (x / x.sum()) * 100).round(1)
+        gen_grado.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_genero_grado.json"), orient='records', force_ascii=False)
+
+        # 4. Dinámica de Trabajo
+        alumnos_por_proy = df_niv.groupby('Proyecto - Codigo')['Estudiante - Numero de documento'].nunique().reset_index()
+        alumnos_por_proy.rename(columns={'Estudiante - Numero de documento': 'Cant_Participantes'}, inplace=True)
+        alumnos_por_proy['Tipo_Participacion'] = alumnos_por_proy['Cant_Participantes'].apply(lambda x: 'Individual' if x==1 else ('En Pareja' if x==2 else 'Atípico (3+)'))
+
+        meta_proy = df_niv.dropna(subset=['Proyecto - Codigo', 'Año', 'Proyecto - Categoria', 'Proyecto - Area', 'Estudiante - Grado'])[['Proyecto - Codigo', 'Año', 'Proyecto - Categoria', 'Proyecto - Area', 'Estudiante - Grado']].drop_duplicates(subset=['Proyecto - Codigo'])
+        df_equipo = pd.merge(meta_proy, alumnos_por_proy, on='Proyecto - Codigo')
+
+        eq_hist = df_equipo.groupby(['Año', 'Tipo_Participacion'])['Proyecto - Codigo'].nunique().reset_index()
+        eq_hist.rename(columns={'Proyecto - Codigo': 'Cant_Proyectos'}, inplace=True)
+        eq_hist['Porcentaje'] = eq_hist.groupby('Año')['Cant_Proyectos'].transform(lambda x: (x / x.sum()) * 100).round(1)
+        eq_hist.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_equipo_hist.json"), orient='records', force_ascii=False)
+
+        eq_cat = df_equipo.groupby(['Año', 'Proyecto - Categoria', 'Tipo_Participacion'])['Proyecto - Codigo'].nunique().reset_index()
+        eq_cat.rename(columns={'Proyecto - Codigo': 'Cant_Proyectos'}, inplace=True)
+        eq_cat['Porcentaje'] = eq_cat.groupby(['Año', 'Proyecto - Categoria'])['Cant_Proyectos'].transform(lambda x: (x / x.sum()) * 100).round(1)
+        eq_cat.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_equipo_cat.json"), orient='records', force_ascii=False)
+
+        eq_area = df_equipo.groupby(['Año', 'Proyecto - Categoria', 'Proyecto - Area', 'Tipo_Participacion'])['Proyecto - Codigo'].nunique().reset_index()
+        eq_area.rename(columns={'Proyecto - Codigo': 'Cant_Proyectos'}, inplace=True)
+        eq_area['Porcentaje'] = eq_area.groupby(['Año', 'Proyecto - Categoria', 'Proyecto - Area'])['Cant_Proyectos'].transform(lambda x: (x / x.sum()) * 100).round(1)
+        eq_area.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_equipo_area.json"), orient='records', force_ascii=False)
+
+        eq_grado = df_equipo.groupby(['Año', 'Estudiante - Grado', 'Tipo_Participacion'])['Proyecto - Codigo'].nunique().reset_index()
+        eq_grado.rename(columns={'Proyecto - Codigo': 'Cant_Proyectos'}, inplace=True)
+        eq_grado['Porcentaje'] = eq_grado.groupby(['Año', 'Estudiante - Grado'])['Cant_Proyectos'].transform(lambda x: (x / x.sum()) * 100).round(1)
+        eq_grado.to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_equipo_grado.json"), orient='records', force_ascii=False)
+
+        # 5. Temas NLP
+        temas_general, temas_grado, temas_cat, temas_area = [], [], [], []
+        if col_titulo and 'titulo_limpio' in df_niv.columns:
+            for a in sorted(df_niv['Año'].unique()):
+                filtro_a = df_niv[df_niv['Año'] == a].drop_duplicates(subset=['Proyecto - Codigo'])
+                
+                f_gen = hallar_frecuencias(filtro_a, top_n=5)
+                if not f_gen.empty: f_gen['Año'] = a; temas_general.append(f_gen)
+                    
+                for g in filtro_a['Estudiante - Grado'].dropna().unique():
+                    f_g = hallar_frecuencias(filtro_a[filtro_a['Estudiante - Grado'] == g], top_n=3)
+                    if not f_g.empty: f_g['Año'] = a; f_g['Grado'] = g; temas_grado.append(f_g)
+                        
+                for c in filtro_a['Proyecto - Categoria'].dropna().unique():
+                    f_c = hallar_frecuencias(filtro_a[filtro_a['Proyecto - Categoria'] == c], top_n=3)
+                    if not f_c.empty: f_c['Año'] = a; f_c['Categoria'] = c; temas_cat.append(f_c)
+                        
+                for ar in filtro_a['Proyecto - Area'].dropna().unique():
+                    f_ar = hallar_frecuencias(filtro_a[filtro_a['Proyecto - Area'] == ar], top_n=3)
+                    if not f_ar.empty:
+                        f_ar['Año'] = a; f_ar['Categoria'] = filtro_a[filtro_a['Proyecto - Area'] == ar]['Proyecto - Categoria'].iloc[0]; f_ar['Area'] = ar
+                        temas_area.append(f_ar)
+
+        if temas_general: pd.concat(temas_general, ignore_index=True).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_temas_general.json"), orient='records', force_ascii=False)
+        else: pd.DataFrame(columns=['Año', 'Tema', 'Frecuencia']).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_temas_general.json"), orient='records', force_ascii=False)
+        
+        if temas_grado: pd.concat(temas_grado, ignore_index=True).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_temas_grado.json"), orient='records', force_ascii=False)
+        else: pd.DataFrame(columns=['Año', 'Grado', 'Tema', 'Frecuencia']).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_temas_grado.json"), orient='records', force_ascii=False)
+        
+        if temas_cat: pd.concat(temas_cat, ignore_index=True).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_temas_cat.json"), orient='records', force_ascii=False)
+        else: pd.DataFrame(columns=['Año', 'Categoria', 'Tema', 'Frecuencia']).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_temas_cat.json"), orient='records', force_ascii=False)
+        
+        if temas_area: pd.concat(temas_area, ignore_index=True).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_temas_area.json"), orient='records', force_ascii=False)
+        else: pd.DataFrame(columns=['Año', 'Categoria', 'Area', 'Tema', 'Frecuencia']).to_json(os.path.join(carpeta, f"{prefijo}_data_{niv_low}_temas_area.json"), orient='records', force_ascii=False)
+
+def procesar_metrica_nac(eureka_nacional, col_titulo, orden_dre, escale_data, eureka_ugel, eureka_dre):
+    print("\n--- INICIANDO PROCESAMIENTO: ETAPA NACIONAL ---")
+    print("Exportando Nacional NACIONAL...")
+    exportar_lote_nac_json("Nacional", "Nacional", eureka_nacional, "nacional", col_titulo, escale_data, eureka_ugel, eureka_dre)
+    
+    print("Exportando las 26 Regiones NACIONAL...")
+    for dre in orden_dre:
+        df_nac_filtrado = eureka_nacional[eureka_nacional['IE - DRE'] == dre]
+        df_escale_filtrado = escale_data[escale_data['IE - DRE'] == dre]
+        df_ugel_filtrado = eureka_ugel[eureka_ugel['IE - DRE'] == dre]
+        df_dre_filtrado = eureka_dre[eureka_dre['IE - DRE'] == dre]
+        if not df_nac_filtrado.empty:
+            exportar_lote_nac_json("Nacional", dre, df_nac_filtrado, limpiar_nombre(dre), col_titulo, df_escale_filtrado, df_ugel_filtrado, df_dre_filtrado)
+
+
 # =========================================================
 # 1. CARGA Y LIMPIEZA MAESTRA DE DATOS
 # =========================================================
 ruta_eureka = 'data/eureka_ugel.parquet'
 ruta_escale = 'data/escale.parquet'
 ruta_eureka_dre = 'data/eureka_dre.parquet'
+ruta_eureka_nacional = 'data/eureka_nacional.parquet'
 
 eureka_data = pd.read_parquet(ruta_eureka)
 escale_data = pd.read_parquet(ruta_escale)
@@ -574,5 +755,20 @@ if os.path.exists(ruta_eureka_dre):
     procesar_metrica_dre(eureka_dre_data, col_titulo_val, orden_dre, escale_data, eureka_data)
 else:
     print(f"No se encontró el archivo DRE en {ruta_eureka_dre}. Omitiendo etapa DRE.")
+    
+# Ejecutar lógica de Etapa Nacional
+if os.path.exists(ruta_eureka_nacional) and os.path.exists(ruta_eureka_dre):
+    eureka_nacional_data = pd.read_parquet(ruta_eureka_nacional)
+    
+    if 'IE - DRE' in eureka_nacional_data.columns:
+        eureka_nacional_data['IE - DRE'] = eureka_nacional_data['IE - DRE'].str.replace(r'^(DRE|GRE)\s+', '', regex=True, flags=re.IGNORECASE).str.strip()
+        eureka_nacional_data['IE - DRE'] = eureka_nacional_data['IE - DRE'].replace({'La libertad': 'La Libertad', 'Ancash': 'Áncash'})
+
+    if col_titulo_val and col_titulo_val in eureka_nacional_data.columns:
+        eureka_nacional_data['titulo_limpio'] = eureka_nacional_data[col_titulo_val].apply(limpiar_titulo)
+        
+    procesar_metrica_nac(eureka_nacional_data, col_titulo_val, orden_dre, escale_data, eureka_data, eureka_dre_data)
+else:
+    print(f"No se encontró el archivo Nacional en {ruta_eureka_nacional}. Omitiendo etapa Nacional.")
 
 print("\n¡Éxito absoluto! Todos los archivos JSON están listos.")

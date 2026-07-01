@@ -365,9 +365,89 @@
                 </div>
             </div>
 
-            <div id="contenedor-etapa-nacional" class="empty-stage-container" style="display: none;">
-                <h2>Etapa Nacional</h2>
-                <p>La información para esta etapa se encuentra en desarrollo y estará disponible próximamente.</p>
+            <div id="contenedor-etapa-nacional" style="display: none;">
+                <div class="dashboard-grid">
+
+                    <section class="chart-card full-width">
+                        <h2>Comparativa de Representatividad por Gestión de la Institución Educativa</h2>
+                        <div id="grafica_rep_gestion_nac" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Comparativa de Representatividad por Área Geográfica de la Institución Educativa</h2>
+                        <div id="grafica_rep_area_nac" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+                    
+                    <section id="section_comprobacion_nac" class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Auditoría de Clasificación: Proyectos por DRE enviados a la Etapa Nacional</h2>
+                            <select id="select-anio-comprobacion_nac" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <p class="descripcion-grafico">Matriz de cumplimiento de envíos por DRE. <span style="color:green; font-weight:bold;">1 (✅ Correcto)</span> | <span style="color:orange; font-weight:bold;">2 (⚠️ Excepción)</span> | <span style="color:red; font-weight:bold;">0 o >2 (❌ Incumplimiento)</span></p>
+                        <div id="tabla_comprobacion_nac" class="table-container" style="overflow-x: auto;"></div>
+                    </section>
+                    
+                    <section class="chart-card full-width">
+                        <h2>Top 20 Instituciones con Mayor Participación Histórica</h2>
+                        <div id="tabla_top20_nac" class="table-container" style="overflow-x: auto;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Evolución Histórica de la Participación por Género de los Estudiantes</h2>
+                        <div id="grafica_genero_hist_nac" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de Participación por Género de los Estudiantes</h2>
+                            <select id="select-anio-genero_nac" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Distribución por Grado Escolar</h3>
+                        <div id="grafica_genero_grado_nac" class="plotly-graph" style="height: 400px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Distribución por Categoría</h3>
+                        <div id="grafica_genero_cat_nac" class="plotly-graph" style="height: 400px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Distribución por Área</h3>
+                        <div id="grafica_genero_area_nac" class="plotly-graph" style="height: 550px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Evolución Histórica de la Dinámica de Trabajo</h2>
+                        <p class="descripcion-grafico">Proporción de proyectos desarrollados de manera individual o en equipo (parejas) a lo largo del tiempo.</p>
+                        <div id="grafica_equipo_hist_nac" class="plotly-graph" style="height: 400px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de la Dinámica de Trabajo</h2>
+                            <select id="select-anio-equipo_nac" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Preferencia por Grado Escolar</h3>
+                        <div id="grafica_equipo_grado_nac" class="plotly-graph" style="height: 400px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Preferencia por Categoría</h3>
+                        <div id="grafica_equipo_cat_nac" class="plotly-graph" style="height: 400px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Preferencia por Área</h3>
+                        <div id="grafica_equipo_area_nac" class="plotly-graph" style="height: 550px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <h2>Tendencias en Temas de Investigación</h2>
+                        <p class="descripcion-grafico">Temas y enfoques de investigación más recurrentes extraídos de los proyectos.</p>
+                        <div id="grafica_temas_general_nac" class="plotly-graph" style="height: 350px;"></div>
+                    </section>
+
+                    <section class="chart-card full-width">
+                        <div class="header-with-select">
+                            <h2>Análisis de Temas de Investigación</h2>
+                            <select id="select-anio-temas_nac" class="light-select" style="width: auto; min-width: 100px; padding: 5px 10px;"></select>
+                        </div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 10px;">Tendencias por Grado Escolar</h3>
+                        <div id="grafica_temas_grado_nac" class="plotly-graph" style="height: 300px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Tendencias por Categoría</h3>
+                        <div id="grafica_temas_cat_nac" class="plotly-graph" style="height: 300px;"></div>
+                        <h3 style="text-align: center; color: #005A7C; margin-top: 20px;">Tendencias por Área</h3>
+                        <div id="grafica_temas_area_nac" class="plotly-graph" style="height: 500px;"></div>
+                    </section>
+                </div>
             </div>
 
             <div id="contenedor-etapa-ganadores" class="empty-stage-container" style="display: none;">
